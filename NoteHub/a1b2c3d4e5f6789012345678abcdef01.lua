@@ -1,4 +1,4 @@
--- Decor Cleaner + Auto Farm Wild Pet v6.8 (Minimalist GUI)
+-- Decor Cleaner + Auto Farm Wild Pet v7.0 (Minimalist GUI)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -27,7 +27,7 @@ local CONFIG = {
     PromptSpamMax = 8,
     MaxTimeToReach = 15,
     InstantFire = true,
-    AntiAfkEnabled = true, -- selalu ON
+    AntiAfkEnabled = true,
     AntiAfkMinWait = 5 * 60,
     AntiAfkMaxWait = 10 * 60,
     DefaultWalkSpeed = 20,
@@ -38,7 +38,7 @@ local CONFIG = {
     WatchdogForceSkipAfter = 12,
     FireConfirmWait = 0.5,
     FireConfirmMoveMin = 2,
-    PriorityMode = "Points", -- fixed
+    PriorityMode = "Points",
     PriorityDistanceWeight = 0.5,
     HighValueThreshold = 25,
     MaxChaseDistance = 400,
@@ -54,8 +54,7 @@ local PET_RARITY = {
     ["Swan"] = {rarity = "Legendary", points = 25},
     ["Wolf"] = {rarity = "Mythic", points = 40},
     ["Fox"] = {rarity = "Mythic", points = 40},
-    ["Shadow_Dragon"] = {rarity = "Super", points = 500},
-    ["ShadowDragon"] = {rarity = "Super", points = 500},
+    ["Shadow Dragon"] = {rarity = "Super", points = 500},
 }
 
 local RARITY_COLORS = {
@@ -145,7 +144,7 @@ local function extractPetName(fullName)
         for i = firstIdx + 1, secondIdx - 1 do
             table.insert(nameParts, parts[i])
         end
-        return table.concat(nameParts, "_")
+        return table.concat(nameParts, " ")
     end
     if #parts >= 2 then return parts[2] end
     return fullName
@@ -153,9 +152,9 @@ end
 
 local function getPetInfo(petName)
     if PET_RARITY[petName] then return PET_RARITY[petName] end
-    local normalized = petName:lower():gsub("_", "")
+    local normalized = petName:lower():gsub("[_%s]", "")
     for name, info in pairs(PET_RARITY) do
-        local nameNorm = name:lower():gsub("_", "")
+        local nameNorm = name:lower():gsub("[_%s]", "")
         if nameNorm == normalized then return info end
     end
     return {rarity = "Unknown", points = 0}
@@ -168,7 +167,6 @@ local boughtCount = 0
 local totalPoints = 0
 local ignoredPets = {}
 local currentWalkSpeed = CONFIG.DefaultWalkSpeed
-local antiAfkEnabled = true -- selalu ON
 local petInventory = {}
 local inventoryOrder = {}
 local skippedUnknownCount = 0
@@ -247,7 +245,7 @@ ContentFrame.Position = UDim2.new(0, 0, 0, 30)
 ContentFrame.BackgroundTransparency = 1
 ContentFrame.Parent = MainFrame
 
--- Panel daftar pet
+-- Panel daftar pet (hanya yang didapat)
 local InvFrame = Instance.new("ScrollingFrame")
 InvFrame.Size = UDim2.new(1, -16, 1, -126)
 InvFrame.Position = UDim2.new(0, 8, 0, 0)
@@ -268,6 +266,18 @@ InvPadding.PaddingTop = UDim.new(0, 4)
 InvPadding.PaddingLeft = UDim.new(0, 6)
 InvPadding.PaddingRight = UDim.new(0, 6)
 InvPadding.PaddingBottom = UDim.new(0, 4)
+
+-- Empty state label
+local EmptyLabel = Instance.new("TextLabel")
+EmptyLabel.Size = UDim2.new(1, -12, 1, -8)
+EmptyLabel.Position = UDim2.new(0, 6, 0, 4)
+EmptyLabel.BackgroundTransparency = 1
+EmptyLabel.Text = "Belum ada pet yang didapat"
+EmptyLabel.TextColor3 = Color3.fromRGB(100, 100, 110)
+EmptyLabel.Font = Enum.Font.Gotham
+EmptyLabel.TextSize = 11
+EmptyLabel.TextWrapped = true
+EmptyLabel.Parent = InvFrame
 
 -- Panel PTS
 local PointsPanel = Instance.new("Frame")
@@ -378,7 +388,7 @@ local function updateSpeedButtons()
     end
 end
 
--- Inventory UI
+-- Inventory UI (hanya pet yang didapat)
 local petRows = {}
 
 local function createPetRow(petName)
@@ -446,30 +456,8 @@ local function refreshInventoryUI()
             row.frame.LayoutOrder = i
         end
     end
-end
 
-local function initPetList()
-    local names = {}
-    for name, _ in pairs(PET_RARITY) do
-        table.insert(names, name)
-    end
-    table.sort(names, function(a, b)
-        local infoA = getPetInfo(a)
-        local infoB = getPetInfo(b)
-        local orderA = RARITY_ORDER[infoA.rarity] or 99
-        local orderB = RARITY_ORDER[infoB.rarity] or 99
-        if orderA ~= orderB then
-            return orderA < orderB
-        end
-        return a < b
-    end)
-    for _, name in ipairs(names) do
-        if not petInventory[name] then
-            petInventory[name] = 0
-            table.insert(inventoryOrder, name)
-        end
-    end
-    refreshInventoryUI()
+    EmptyLabel.Visible = (#inventoryOrder == 0)
 end
 
 local function incrementPet(petName)
@@ -975,11 +963,10 @@ end)
 -- Auto start
 local wildFolder = resolvePath(CONFIG.WildPetSpawnsPath)
 if wildFolder then
-    initPetList()
     updatePoints()
     updateSpeedButtons()
     task.spawn(mainLoop)
-    task.spawn(antiAfkLoop) -- langsung ON
+    task.spawn(antiAfkLoop)
     task.spawn(watchdogLoop)
 
     task.wait(0.5)
